@@ -132,6 +132,10 @@ Vector3 Vec3Mul(Vector3 _a, f32 _scalar)
     v.z = _a.z * _scalar;
     return v;
 }
+bool Vec3EqualsZero(Vector3 _a){
+    return (fabs(_a.x) <= 0.00001f && fabs(_a.y) <= 0.00001f && fabs(_a.z) <= 0.00001f);
+}
+
 
 Vector4 InitVector4(f32 _x, f32 _y, f32 _z, f32 _w)
 {

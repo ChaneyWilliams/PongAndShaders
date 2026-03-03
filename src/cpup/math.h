@@ -63,6 +63,8 @@ Vector3 Vec3Sub(Vector3 _a, Vector3 _b);
 
 Vector3 Vec3Mul(Vector3 _a, f32 _scalar);
 
+bool Vec3EqualsZero(Vector3 _a);
+
 Vector4 InitVector4(f32 _x, f32 _y, f32 _z, f32 _w);
 
 bool CampareMatrix4(Matrix4* _a, Matrix4* _b);
