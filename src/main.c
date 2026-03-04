@@ -88,6 +88,7 @@ int main(int argc, char *argv[])
 
     Entity* leftPaddle = Spawn(&scene);
     leftPaddle->id = 1;
+    leftPaddle->color = (Vector4){0.0f, 0.0f, 1.0f, 1.0f};
     leftPaddle->name = (char*) "LeftPaddle";
     leftPaddle->transform.position = InitVector3(16.0f, app.windowHeight * 0.5f, 0.0f);
     leftPaddle->data = calloc(1, sizeof(Paddle));
@@ -96,11 +97,12 @@ int main(int argc, char *argv[])
     leftPaddle->shaderId = shaderProgram;
     leftPaddle->Start = PaddleStart;
     leftPaddle->Update = PaddleUpdateTheOriginal;
-    leftPaddle->Draw = PaddleDrawTheOriginal;
+    leftPaddle->Draw = PaddleDraw;
     leftPaddle->OnDestroy = PaddleOnDestroy;
 
     Entity* rightPaddle = Spawn(&scene);
     rightPaddle->id = 2;
+    rightPaddle->color = (Vector4){1.0f, 0.0f, 0.0f, 1.0f};
     rightPaddle->name = (char*) "RightPaddle";
     rightPaddle->transform.position = InitVector3(app.windowWidth - 16.0f, app.windowHeight * 0.5f, 0.0f);
     rightPaddle->data = calloc(1, sizeof(Paddle));
@@ -109,7 +111,7 @@ int main(int argc, char *argv[])
     rightPaddle->shaderId = shaderProgram;
     rightPaddle->Start = PaddleStart;
     rightPaddle->Update = PaddleUpdateTheSequal;
-    rightPaddle->Draw = PaddleDrawTheSequal;
+    rightPaddle->Draw = PaddleDraw;
     rightPaddle->OnDestroy = PaddleOnDestroy;
     
     bool running = true;
