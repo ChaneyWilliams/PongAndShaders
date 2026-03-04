@@ -17,7 +17,7 @@ int count = 0;
 Entity *SpawnBall(AppContext *_app, Entity *_entity);
 Entity *Find(Scene **_scene, const char *_name);
 Vector4 PositionColor(Vector3 position);
-Entity *GetEntity(Scene *scene, int id);
+Entity* Find(Scene** _scene, const char* _name);
 bool Collision(Entity *_ball, Entity *_paddle);
 
 void BallStart(AppContext *_app, Entity *_entity)
@@ -60,8 +60,8 @@ void BallUpdate(AppContext *_app, Entity *_entity)
         _entity->velocity.y *= -1.0f;
     }
 
-    Entity *leftPaddle = GetEntity((Scene *)_app->scene, 1);
-    Entity *rightPaddle = GetEntity((Scene *)_app->scene, 2);
+    Entity *leftPaddle = Find(&_app->scene, "LeftPaddle");
+    Entity *rightPaddle = Find(&_app->scene, "RightPaddle");
     // if(leftPaddle){printf("%s\n",leftPaddle->name);} im leaving this comment as a memento mori for all the suffering the above caused
 
     if (Collision(_entity, leftPaddle) || Collision(_entity, rightPaddle))
@@ -122,10 +122,9 @@ Vector4 PositionColor(Vector3 position)
     return color;
 }
 
-Entity *SpawnBall(AppContext *_app, Entity *_entity)
-{
-    void **scene = &(_app->scene);
-    Entity *ball = Spawn((Scene **)scene);
+Entity* SpawnBall(AppContext* _app, Entity* _entity) {
+
+    Entity* ball = Spawn(&(_app->scene));
     ball->transform.position = InitVector3(_app->windowWidth * 0.5f, _app->windowHeight * 0.5f, 0.0f);
     ball->data = calloc(1, sizeof(Ball));
     ball->image = _entity->image;
