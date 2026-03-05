@@ -12,13 +12,20 @@ typedef struct
     int leftScore;
     int rightScore;
 } Ball;
+enum CollisionSide
+{
+    NONE,
+    LEFT,
+    RIGHT,
+    TOP,
+    BOTTOM
+};
 
-int count = 0;
 Entity *SpawnBall(AppContext *_app, Entity *_entity);
 Entity *Find(Scene **_scene, const char *_name);
 Vector4 PositionColor(Vector3 position);
-Entity* Find(Scene** _scene, const char* _name);
-bool Collision(Entity *_ball, Entity *_paddle);
+Entity *Find(Scene **_scene, const char *_name);
+enum CollisionSide Collision(Entity *_ball, Entity *_paddle);
 
 void BallStart(AppContext *_app, Entity *_entity)
 {
@@ -64,12 +71,18 @@ void BallUpdate(AppContext *_app, Entity *_entity)
     Entity *rightPaddle = Find(&_app->scene, "RightPaddle");
     // if(leftPaddle){printf("%s\n",leftPaddle->name);} im leaving this comment as a memento mori for all the suffering the above caused
 
-    if (Collision(_entity, leftPaddle) || Collision(_entity, rightPaddle))
+    enum CollisionSide lPaddle = Collision(_entity, leftPaddle);
+    enum CollisionSide rPaddle = Collision(_entity, rightPaddle);
+
+    if ((lPaddle == LEFT || lPaddle == RIGHT) ||
+        (rPaddle == LEFT || rPaddle == RIGHT))
     {
-        count++;
-        printf("collision: %i\n", count);
         _entity->velocity.x *= -1.0f;
-        _entity->velocity = Vec2Mul(_entity->velocity, 1.15f);
+    }
+    else if ((lPaddle == TOP || lPaddle == BOTTOM) ||
+             (rPaddle == TOP || rPaddle == BOTTOM))
+    {
+        _entity->velocity = Vec2Mul(_entity->velocity, -1.0f);
     }
 
     Vector3 delta = Vec2ToVec3(Vec2Mul(_entity->velocity, _app->deltaTime));
@@ -81,13 +94,23 @@ void BallDraw(AppContext *_app, Entity *_entity)
     // ---- Base transform (no scale) ----
     Matrix4 base = IdentityMatrix4();
     Mat4Translate(&base, _entity->transform.position);
-    Mat4Rotate(&base, _entity->transform.rotation * DEG2RAD, InitVector3(0,0,1));
+    Mat4Rotate(&base, _entity->transform.rotation * DEG2RAD, InitVector3(0, 0, 1));
 
     BindShader(_entity->shaderId);
     ShaderSetFloat(_entity->shaderId, "TIME", _app->time);
     ShaderSetMatrix4(_entity->shaderId, "VIEW", _app->view);
     ShaderSetMatrix4(_entity->shaderId, "PROJECTION", _app->projection);
     ShaderBindTexture(_entity->shaderId, _entity->image->id, "MAIN_TEXTURE", 0);
+
+    // ---- HALO PASS ----
+    glDepthMask(GL_FALSE);
+    Matrix4 halo = base;
+    Mat4Scale(&halo, InitVector3(_entity->transform.scale.x * 1.4f, _entity->transform.scale.y * 1.4f, _entity->transform.scale.z));
+    ShaderSetVector4(_entity->shaderId, "COLOR", (Vector4){_entity->color.x + 0.25f, _entity->color.y + 0.25f, _entity->color.z + .25f, 0.3f});
+    ShaderSetMatrix4(_entity->shaderId, "TRANSFORM", halo);
+    DrawModel(*_entity->model);
+    glDepthMask(GL_TRUE);
+
     // ---- BALL PASS ----
     Matrix4 ball = base;
     Mat4Scale(&ball, _entity->transform.scale);
@@ -95,13 +118,7 @@ void BallDraw(AppContext *_app, Entity *_entity)
     ShaderSetMatrix4(_entity->shaderId, "TRANSFORM", ball);
     DrawModel(*_entity->model);
 
-    // ---- HALO PASS ----
-    Matrix4 halo = base;
-    Mat4Scale(&halo, InitVector3(_entity->transform.scale.x * 1.4f, _entity->transform.scale.y * 1.4f, _entity->transform.scale.z));
-    ShaderSetVector4(_entity->shaderId, "COLOR", (Vector4){_entity->color.x, _entity->color.y, _entity->color.z, 0.3f});
-    ShaderSetMatrix4(_entity->shaderId, "TRANSFORM", halo);
-    DrawModel(*_entity->model);
-
+    
 
     UnBindShader();
 }
@@ -122,9 +139,10 @@ Vector4 PositionColor(Vector3 position)
     return color;
 }
 
-Entity* SpawnBall(AppContext* _app, Entity* _entity) {
+Entity *SpawnBall(AppContext *_app, Entity *_entity)
+{
 
-    Entity* ball = Spawn(&(_app->scene));
+    Entity *ball = Spawn(&(_app->scene));
     ball->transform.position = InitVector3(_app->windowWidth * 0.5f, _app->windowHeight * 0.5f, 0.0f);
     ball->data = calloc(1, sizeof(Ball));
     ball->image = _entity->image;
@@ -137,24 +155,45 @@ Entity* SpawnBall(AppContext* _app, Entity* _entity) {
     return ball;
 }
 
-bool Collision(Entity *_ball, Entity *_paddle)
+
+
+enum CollisionSide Collision(Entity *_ball, Entity *_paddle)
 {
-    bool touchingX = false;
-    bool touchingY = false;
-    if (_ball->transform.position.x + _ball->transform.scale.x * 0.5f > _paddle->transform.position.x - _paddle->transform.scale.x * 0.5f &&
-        _ball->transform.position.x - _ball->transform.scale.x * 0.5f < _paddle->transform.position.x + _paddle->transform.scale.x * 0.5f)
+    float distanceX = _ball->transform.position.x - _paddle->transform.position.x;
+    float distanceY = _ball->transform.position.y - _paddle->transform.position.y;
+
+    float intersectX = fabs(distanceX) - (_ball->transform.scale.x * 0.5f + _paddle->transform.scale.x * 0.5f);
+    float intersectY = fabs(distanceY) - (_ball->transform.scale.y * 0.5f + _paddle->transform.scale.y * 0.5f);
+
+    if (intersectX < 0.0f && intersectY < 0.0f)
     {
-        touchingX = true;
+        if (fabs(intersectX) < fabs(intersectY))
+        {
+            _ball->color = _paddle->color;
+            // Collision on X axis
+            if (distanceX > 0)
+            {
+                return RIGHT;
+            } // Ball hit paddle's right side
+            else
+            {
+
+                return LEFT;
+            } // Ball hit paddle's left side
+        }
+        else
+        {
+            // Collision on Y axis
+            if (distanceY > 0)
+            {
+                return TOP;
+            } // Ball hit paddle's top
+            else
+            {
+                return BOTTOM;
+            } // Ball hit paddle's bottom
+        }
     }
-    if (_ball->transform.position.y + _ball->transform.scale.y * 0.5f > _paddle->transform.position.y - _paddle->transform.scale.y * 0.5f &&
-        _ball->transform.position.y - _ball->transform.scale.y * 0.5f < _paddle->transform.position.y + _paddle->transform.scale.y * 0.5f)
-    {
-        touchingY = true;
-    }
-    if (touchingX && touchingY)
-    {
-        _ball->color = _paddle->color;
-        return true;
-    }
-    return false;
+
+    return NONE;
 }

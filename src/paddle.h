@@ -35,11 +35,11 @@ void PaddleUpdateTheSequal(AppContext *_app, Entity *_entity)
 {
     Vector2 direction = {0.0f, 0.0f};
 
-    if (GetKey(_app, SDL_SCANCODE_I))
+    if (GetKey(_app, SDL_SCANCODE_UP))
     {
         direction = (Vector2){0.0f, 1.0f};
     }
-    else if (GetKey(_app, SDL_SCANCODE_K))
+    else if (GetKey(_app, SDL_SCANCODE_DOWN))
     {
         direction = (Vector2){0.0f, -1.0f};
     }
