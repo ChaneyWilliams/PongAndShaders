@@ -25,6 +25,7 @@
 
 #include "ball.h"
 #include "paddle.h"
+#include "GridCell.h"
 
 AppContext app;
 
@@ -37,43 +38,62 @@ int main(int argc, char *argv[])
 
     app.windowWidth = 600;
     app.windowHeight = 600;
-    
+
     if (InitWindow(&app) > 0)
         return 1;
 
-    Scene* scene = SceneInit();
+    Scene *scene = SceneInit();
     app.scene = scene;
-    
+
     Image iconImage = IOLoadImage("assets/textures/canis_engine_icon.tga");
     Image containerImage = IOLoadImage("assets/textures/container.tga");
     Image circleImage = IOLoadImage("assets/textures/circle.tga");
     Image squareImage = IOLoadImage("assets/textures/square.tga");
-    
+
     // build and compile our shader program
     u32 shaderProgram = GenerateShaderFromFiles("assets/shaders/logo.vs", "assets/shaders/logo.fs");
     printf("shaderID: %i\n", shaderProgram);
 
     float ve[] = {
         // positions            // texture coords
-         0.5f,  0.5f, 0.0f,     1.0f, 1.0f, // top right
-         0.5f, -0.5f, 0.0f,     1.0f, 0.0f, // bottom right
-        -0.5f, -0.5f, 0.0f,     0.0f, 0.0f, // bottom left
-        -0.5f,  0.5f, 0.0f,     0.0f, 1.0f  // top left 
+        0.5f, 0.5f, 0.0f, 1.0f, 1.0f,   // top right
+        0.5f, -0.5f, 0.0f, 1.0f, 0.0f,  // bottom right
+        -0.5f, -0.5f, 0.0f, 0.0f, 0.0f, // bottom left
+        -0.5f, 0.5f, 0.0f, 0.0f, 1.0f   // top left
     };
     unsigned int in[] = {
         0, 1, 3, // first triangle
         1, 2, 3  // second triangle
     };
 
-    f32* vertices = vec_init(32, sizeof(f32));
+    f32 *vertices = vec_init(32, sizeof(f32));
     vec_append(&vertices, ve, 32);
 
-    u32* indices = vec_init(6, sizeof(u32));
+    u32 *indices = vec_init(6, sizeof(u32));
     vec_append(&indices, in, 6);
-    
+
     Model model = BuildModel(&vertices, &indices, STATIC_DRAW);
 
-    Entity* ball = Spawn(&scene);
+    float cellSize = 32.0f;
+    float border = 2.0f;
+    for (float x = -cellSize; x <= app.windowHeight + 2.0f * cellSize; x += cellSize + border)
+    {
+        for (float y = -cellSize; y <= app.windowWidth + 2.0f * cellSize; y += cellSize + border)
+        {
+            Entity *cell = Spawn(&scene);
+            cell->transform.position = InitVector3(x, y, -0.001f);
+            cell->data = calloc(1, sizeof(Cell));
+            cell->image = &squareImage;
+            cell->model = &model;
+            cell->shaderId = shaderProgram;
+            cell->Start = CellStart;
+            cell->Update = CellUpdate;
+            cell->Draw = CellDraw;
+            cell->OnDestroy = CellDestroy;
+        }
+    }
+
+    Entity *ball = Spawn(&scene);
     ball->transform.position = InitVector3(app.windowWidth * 0.5f, app.windowHeight * 0.5f, 0.0f);
     ball->id = 0;
     ball->name = "Ball";
@@ -86,10 +106,10 @@ int main(int argc, char *argv[])
     ball->Draw = BallDraw;
     ball->OnDestroy = BallOnDestroy;
 
-    Entity* leftPaddle = Spawn(&scene);
+    Entity *leftPaddle = Spawn(&scene);
     leftPaddle->id = 1;
     leftPaddle->color = (Vector4){0.0f, 0.0f, 1.0f, 1.0f};
-    leftPaddle->name = (char*) "LeftPaddle";
+    leftPaddle->name = (char *)"LeftPaddle";
     leftPaddle->transform.position = InitVector3(16.0f, app.windowHeight * 0.5f, 0.0f);
     leftPaddle->data = calloc(1, sizeof(Paddle));
     leftPaddle->image = &squareImage;
@@ -100,10 +120,10 @@ int main(int argc, char *argv[])
     leftPaddle->Draw = PaddleDraw;
     leftPaddle->OnDestroy = PaddleOnDestroy;
 
-    Entity* rightPaddle = Spawn(&scene);
+    Entity *rightPaddle = Spawn(&scene);
     rightPaddle->id = 2;
     rightPaddle->color = (Vector4){1.0f, 0.0f, 0.0f, 1.0f};
-    rightPaddle->name = (char*) "RightPaddle";
+    rightPaddle->name = (char *)"RightPaddle";
     rightPaddle->transform.position = InitVector3(app.windowWidth - 16.0f, app.windowHeight * 0.5f, 0.0f);
     rightPaddle->data = calloc(1, sizeof(Paddle));
     rightPaddle->image = &squareImage;
@@ -113,13 +133,14 @@ int main(int argc, char *argv[])
     rightPaddle->Update = PaddleUpdateTheSequal;
     rightPaddle->Draw = PaddleDraw;
     rightPaddle->OnDestroy = PaddleOnDestroy;
-    
+
     bool running = true;
     f32 time = 0.0f;
-    while(running) {
+    while (running)
+    {
         // imput
         InputManagerNewFrame(&app);
-        //printf("FPS: %f Entity Count: %i\n", 1.0f/app.deltaTime, vec_count(&scene->entities));
+        // printf("FPS: %f Entity Count: %i\n", 1.0f/app.deltaTime, vec_count(&scene->entities));
 
         SDL_Event event;
         while (SDL_PollEvent(&event))
@@ -132,20 +153,19 @@ int main(int argc, char *argv[])
         ClearWindow();
 
         if (app.time != 0.0f)
-            app.deltaTime = (SDL_GetTicksNS() * 1e-9) -  app.time;
-        
+            app.deltaTime = (SDL_GetTicksNS() * 1e-9) - app.time;
+
         app.time = SDL_GetTicksNS() * 1e-9;
 
         SceneStart(&app, &scene);
 
-        app.projection = Mat4Orthographic(0.0f, (float)app.windowWidth, 0.0f, (float)app.windowHeight, 0.001f, 100.0f); 
-        app.view = IdentityMatrix4(); 
+        app.projection = Mat4Orthographic(0.0f, (float)app.windowWidth, 0.0f, (float)app.windowHeight, 0.001f, 100.0f);
+        app.view = IdentityMatrix4();
         Mat4Translate(&app.view, InitVector3(0.0f, 0.0f, -0.5f));
 
         SceneUpdate(&app, &scene);
 
         SceneDraw(&app, &scene);
-
         SwapWindow(&app);
     }
 

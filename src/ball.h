@@ -78,6 +78,7 @@ void BallUpdate(AppContext *_app, Entity *_entity)
         (rPaddle == LEFT || rPaddle == RIGHT))
     {
         _entity->velocity.x *= -1.0f;
+        _entity->velocity = Vec2Mul(_entity->velocity, 1.15f);
     }
     else if ((lPaddle == TOP || lPaddle == BOTTOM) ||
              (rPaddle == TOP || rPaddle == BOTTOM))
@@ -132,9 +133,9 @@ Vector4 PositionColor(Vector3 position)
     Vector4 color;
     float frequency = 0.05f;
 
-    color.x = 0.5f + 0.5f * sinf(position.x * frequency + 0.0f);
-    color.y = 0.5f + 0.5f * sinf(position.y * frequency + 2.0f);
-    color.z = 0.5f + 0.5f * sinf((position.x + position.y) * frequency + 4.0f);
+    color.x = 0.5f + 0.5f * sinf(position.x);
+    color.y = 0.5f + 0.5f * sinf(position.y);
+    color.z = 0.5f + 0.5f * sinf(position.x + position.y);
     color.w = 1.0f;
     return color;
 }
