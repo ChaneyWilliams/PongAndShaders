@@ -19,7 +19,7 @@ void PulseChange(AppContext *_app, Entity *_entity);
 void InvertedPulseChange(AppContext *_app, Entity *_entity);
 void ScrollRight(AppContext *_app, Entity *_entity);
 void PulseBoth(AppContext *app, Entity *entity);
-void DrawLetterH(AppContext *app, Entity *entity);
+void DrawLetterH(AppContext *app, Entity *entity, int startGX, int startGY);
 
 void CellStart(AppContext *_app, Entity *_entity)
 {
@@ -55,7 +55,21 @@ void CellUpdate(AppContext *_app, Entity *_entity)
         cell->Animate = RandomChange;
     }
     else if(GetKey(_app,SDL_SCANCODE_H)){
-        DrawLetterH(_app,_entity);
+        DrawLetterH(_app,_entity, 3, 2);
+        DrawLetterH(_app,_entity, 7, 2);
+        DrawLetterH(_app,_entity, 11, 2);
+        DrawLetterH(_app,_entity, 15, 2);
+        DrawLetterH(_app,_entity, 20, 2);
+        DrawLetterH(_app,_entity, 3, 8);
+        DrawLetterH(_app,_entity, 7, 8);
+        DrawLetterH(_app,_entity, 11, 8);
+        DrawLetterH(_app,_entity, 15, 8);
+        DrawLetterH(_app,_entity, 20, 8);
+        DrawLetterH(_app,_entity, 3, 14);
+        DrawLetterH(_app,_entity, 7, 14);
+        DrawLetterH(_app,_entity, 11, 14);
+        DrawLetterH(_app,_entity, 15, 14);
+        DrawLetterH(_app,_entity, 20, 14);
     }
     if (cell->Animate)
     {
@@ -176,14 +190,14 @@ void RandomChange(AppContext *_app, Entity *_entity)
         cell->var = rand() % 500 + 500;
     }
 }
-//Big plans
-void DrawLetterH(AppContext *app, Entity *entity)
+//Big plans 20 rows 21 columns
+//6 Chars per line
+//4 lines (maybe 3 to be safe)
+void DrawLetterH(AppContext *app, Entity *entity, int startGX, int startGY)
 {
     Cell *cell = (Cell*)entity->data;
 
     //grid coords
-    int startGX = 10; 
-    int startGY = 10; 
 
     const int glyph_H[5][3] = {
         {1,0,1},
