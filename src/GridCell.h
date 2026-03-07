@@ -52,13 +52,13 @@ void CellStart(AppContext *_app, Entity *_entity)
 void CellUpdate(AppContext *_app, Entity *_entity)
 {
     Cell *cell = (Cell *)_entity->data;
-    cell->Animate = CountCollisions;
     if (cell->ball->scoreBoard == REDSCORE)
     {
         cell->Animate = ResetPulse;
         if (cell->ball->pulseTime >= 848.5f && cell->ball->inversePulseTime <= 0)
         {
             cell->Animate = ScoreRed;
+            cell->ball->animTime = 0.0f;
         }
     }
     if (cell->ball->scoreBoard == BLUESCORE)
@@ -67,6 +67,7 @@ void CellUpdate(AppContext *_app, Entity *_entity)
         if (cell->ball->pulseTime >= 848.5f && cell->ball->inversePulseTime <= 0)
         {
             cell->Animate = ScoreBlue;
+            cell->ball->animTime = 0.0f;
         }
     }
     if (GetKey(_app, SDL_SCANCODE_E))
@@ -140,15 +141,10 @@ void ScrollRight(AppContext *_app, Entity *_entity)
 void PulseChange(AppContext *_app, Entity *_entity)
 {
     Cell *cell = (Cell *)_entity->data;
-    Ball *ball = cell->ball;
-    float dx = _entity->transform.position.x - _app->windowWidth / 2.0f;
-    float dy = _entity->transform.position.y - _app->windowHeight / 2.0f;
 
-    cell->distance = sqrtf(dx * dx + dy * dy);
+    cell->ball->pulseTime += 0.001f;
 
-    ball->pulseTime += 0.001f;
-
-    if (cell->distance < ball->pulseTime && cell->distance > ball->pulseTime - 32.0f)
+    if (cell->distance < cell->ball->pulseTime && cell->distance > cell->ball->pulseTime - 32.0f)
     {
         _entity->color = (Vector4){1.0f, 1.0f, 1.0f, 1.0f};
     }
@@ -156,23 +152,26 @@ void PulseChange(AppContext *_app, Entity *_entity)
 void InvertedPulseChange(AppContext *_app, Entity *_entity)
 {
     Cell *cell = (Cell *)_entity->data;
-    Ball *ball = cell->ball;
-    float dx = _entity->transform.position.x - _app->windowWidth / 2.0f;
-    float dy = _entity->transform.position.y - _app->windowHeight / 2.0f;
 
-    cell->distance = sqrtf(dx * dx + dy * dy);
+    cell->ball->inversePulseTime -= 0.001f;
 
-    ball->inversePulseTime -= 0.001f;
-
-    if (cell->distance > ball->inversePulseTime && cell->distance < ball->inversePulseTime + 32.0f)
+    if (cell->distance > cell->ball->inversePulseTime && cell->distance < cell->ball->inversePulseTime + 32.0f)
     {
         _entity->color = (Vector4){0.0f, 0.0f, 0.0f, 1.0f};
     }
 }
 void ResetPulse(AppContext *_app, Entity *_entity)
 {
-    PulseChange(_app, _entity);
-    InvertedPulseChange(_app, _entity);
+    Cell *cell = (Cell *)_entity->data;
+    if (cell->ball->animTime < 30.0f)
+    {
+        PulseChange(_app, _entity);
+        InvertedPulseChange(_app, _entity);
+    }
+    else
+    {
+        cell->ball->animTime++;
+    }
 }
 void RandomChange(AppContext *_app, Entity *_entity)
 {
@@ -258,30 +257,28 @@ void DrawNumber(AppContext *app, Entity *entity, int number, int startGX, int st
 void ScoreRed(AppContext *_app, Entity *_entity)
 {
     Cell *cell = (Cell *)_entity->data;
-    Ball *ball = cell->ball;
     DrawWord(_app, _entity, "GOAL", 3, 14, InitVector4(1.0f, 1.0f, 1.0f, 1.0f));
     DrawWord(_app, _entity, "RED", 3, 8, InitVector4(1.0f, 0.0f, 0.0f, 1.0f));
-    DrawNumber(_app, _entity, ball->rightScore, 9, 2, InitVector4(1.0f, 0.0f, 0.0f, 1.0f));
+    DrawNumber(_app, _entity, cell->ball->rightScore, 9, 2, InitVector4(1.0f, 0.0f, 0.0f, 1.0f));
 }
 void ScoreBlue(AppContext *_app, Entity *_entity)
 {
     Cell *cell = (Cell *)_entity->data;
-    Ball *ball = cell->ball;
+    cell->ball->animTime += _app->deltaTime;
     DrawWord(_app, _entity, "GOAL", 3, 14, InitVector4(1.0f, 1.0f, 1.0f, 1.0f));
     DrawWord(_app, _entity, "BLUE", 3, 8, InitVector4(0.0f, 0.0f, 1.0f, 1.0f));
-    DrawNumber(_app, _entity, ball->leftScore, 9, 2, InitVector4(0.0f, 0.0f, 1.0f, 1.0f));
+    DrawNumber(_app, _entity, cell->ball->leftScore, 9, 2, InitVector4(0.0f, 0.0f, 1.0f, 1.0f));
 }
 void CountCollisions(AppContext *_app, Entity *_entity)
 {
     Cell *cell = (Cell *)_entity->data;
-    Ball *ball = cell->ball;
-    Vector4 color = ball->color;
-    if (ball->collisionCount > 5)
+    Vector4 color = cell->ball->color;
+    if (cell->ball->collisionCount > 5)
     {
         color = PositionColor(_entity->transform.position);
     }
-    int ones = ball->collisionCount % 10;
-    int tens = (ball->collisionCount/10) % 10;
+    int ones = cell->ball->collisionCount % 10;
+    int tens = (cell->ball->collisionCount / 10) % 10;
     DrawNumber(_app, _entity, tens, 7, 8, color);
     DrawNumber(_app, _entity, ones, 11, 8, color);
 }

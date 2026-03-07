@@ -4,6 +4,7 @@
 #include "cpup/scene.h"
 #include "cpup/model.h"
 #include "cpup/inputmanager.h"
+#include "cpup/window.h"
 #include <SDL3/SDL.h>
 
 enum CollisionSide
@@ -29,7 +30,7 @@ typedef struct
     int collisionCount;
     Vector4 color;
     enum ScoreBoard scoreBoard;
-
+    float animTime;
     float pulseTime;
     float inversePulseTime;
 } Ball;
