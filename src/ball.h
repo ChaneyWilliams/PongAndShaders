@@ -4,14 +4,8 @@
 #include "cpup/scene.h"
 #include "cpup/model.h"
 #include "cpup/inputmanager.h"
-
 #include <SDL3/SDL.h>
 
-typedef struct
-{
-    int leftScore;
-    int rightScore;
-} Ball;
 enum CollisionSide
 {
     NONE,
@@ -20,6 +14,22 @@ enum CollisionSide
     TOP,
     BOTTOM
 };
+enum ScoreBoard
+{
+    BASIC,
+    SCORE,
+    TEST
+};
+
+typedef struct
+{
+    int leftScore;
+    int rightScore;
+    enum ScoreBoard scoreBoard;
+
+    float pulseTime;
+    float inversePulseTime;
+} Ball;
 
 Entity *SpawnBall(AppContext *_app, Entity *_entity);
 Entity *Find(Scene **_scene, const char *_name);
@@ -32,10 +42,28 @@ void BallStart(AppContext *_app, Entity *_entity)
     _entity->color = InitVector4(1.0f, 1.0f, 1.0f, 1.0f);
 
     _entity->transform.scale = InitVector3(32.0f, 32.0f, 1.0f);
+    Ball* ball = (Ball*)_entity->data;
+    ball->pulseTime = 0.0f;
+    ball->inversePulseTime = 848.5f;// its this: sqrtf(_app->windowWidth * _app->windowWidth + _app->windowHeight * _app->windowHeight
 }
 
 void BallUpdate(AppContext *_app, Entity *_entity)
 {
+    Ball *ball = (Ball *)_entity->data;
+    if (_entity->transform.position.x <= 0.0f || _entity->transform.position.x >= _app->windowWidth)
+    {
+        ball->scoreBoard = SCORE;
+        if (_entity->transform.position.x <= 0.0f)
+        {
+            ball->rightScore++;
+        }
+        else if (_entity->transform.position.x >= _app->windowWidth)
+        {
+            ball->leftScore++;
+        }
+        _entity->transform.position = InitVector3(_app->windowHeight * 0.5f, _app->windowHeight * 0.5f, 0.0f);
+        _entity->velocity = InitVector2(0.0f, 0.0f);
+    }
 
     if (GetKeyDown(_app, SDL_SCANCODE_P))
     {
@@ -119,8 +147,6 @@ void BallDraw(AppContext *_app, Entity *_entity)
     ShaderSetMatrix4(_entity->shaderId, "TRANSFORM", ball);
     DrawModel(*_entity->model);
 
-    
-
     UnBindShader();
 }
 
@@ -155,8 +181,6 @@ Entity *SpawnBall(AppContext *_app, Entity *_entity)
     ball->OnDestroy = BallOnDestroy;
     return ball;
 }
-
-
 
 enum CollisionSide Collision(Entity *_ball, Entity *_paddle)
 {

@@ -11,19 +11,26 @@ typedef struct
     int gx;
     int gy;
     float distance;
-    void (*Animate)(AppContext*, Entity*);
+    Ball *ball;
+    int reactedToScore;
+    void (*Animate)(AppContext *, Entity *);
 } Cell;
 
+void DrawLetter(AppContext *_app, Entity *_entity, char letter, int startGX, int startGY, Vector4 color);
+void DrawWord(AppContext *app, Entity *entity, const char *str, int gx, int gy, Vector4 color);
 void RandomChange(AppContext *_app, Entity *_entity);
 void PulseChange(AppContext *_app, Entity *_entity);
 void InvertedPulseChange(AppContext *_app, Entity *_entity);
 void ScrollRight(AppContext *_app, Entity *_entity);
-void PulseBoth(AppContext *app, Entity *entity);
+void ResetPulse(AppContext *app, Entity *entity);
 void DrawLetterH(AppContext *app, Entity *entity, int startGX, int startGY);
+Vector4 PositionColor(Vector3 position);
 
 void CellStart(AppContext *_app, Entity *_entity)
 {
     Cell *cell = (Cell *)_entity->data;
+    Entity *ball = Find(&_app->scene, "Ball");
+    cell->ball = (Ball *)ball->data;
 
     _entity->transform.rotation = 0.0f;
     _entity->color = (Vector4){0.0f, 0.0f, 0.0f, 1.0f}; //(PositionColor(_entity->transform.position));
@@ -42,34 +49,29 @@ void CellUpdate(AppContext *_app, Entity *_entity)
 {
     Cell *cell = (Cell *)_entity->data;
 
+    if (cell->ball->scoreBoard == SCORE)
+    {
+
+        cell->Animate = ResetPulse;
+    }
     if (GetKey(_app, SDL_SCANCODE_E))
     {
         cell->Animate = ScrollRight;
     }
     else if (GetKey(_app, SDL_SCANCODE_R))
     {
-        cell->Animate = PulseBoth;
+        cell->Animate = ResetPulse;
     }
     else if (GetKey(_app, SDL_SCANCODE_T))
     {
         cell->Animate = RandomChange;
     }
-    else if(GetKey(_app,SDL_SCANCODE_H)){
-        DrawLetterH(_app,_entity, 3, 2);
-        DrawLetterH(_app,_entity, 7, 2);
-        DrawLetterH(_app,_entity, 11, 2);
-        DrawLetterH(_app,_entity, 15, 2);
-        DrawLetterH(_app,_entity, 20, 2);
-        DrawLetterH(_app,_entity, 3, 8);
-        DrawLetterH(_app,_entity, 7, 8);
-        DrawLetterH(_app,_entity, 11, 8);
-        DrawLetterH(_app,_entity, 15, 8);
-        DrawLetterH(_app,_entity, 20, 8);
-        DrawLetterH(_app,_entity, 3, 14);
-        DrawLetterH(_app,_entity, 7, 14);
-        DrawLetterH(_app,_entity, 11, 14);
-        DrawLetterH(_app,_entity, 15, 14);
-        DrawLetterH(_app,_entity, 20, 14);
+    else if (GetKey(_app, SDL_SCANCODE_H))
+    {
+        Vector4 color = PositionColor(_entity->transform.position);
+        DrawWord(_app, _entity, "HEY", 3, 14, color);
+        DrawWord(_app, _entity, "HIT", 3, 8, color);
+        DrawWord(_app, _entity, "RKEY", 3, 2, color);
     }
     if (cell->Animate)
     {
@@ -121,51 +123,36 @@ void ScrollRight(AppContext *_app, Entity *_entity)
 void PulseChange(AppContext *_app, Entity *_entity)
 {
     Cell *cell = (Cell *)_entity->data;
-
+    Ball *ball = cell->ball;
     float dx = _entity->transform.position.x - _app->windowWidth / 2.0f;
     float dy = _entity->transform.position.y - _app->windowHeight / 2.0f;
 
     cell->distance = sqrtf(dx * dx + dy * dy);
-    
-    static float pulseTime = 0.0f;
-    pulseTime += 0.001f;
 
-    if (cell->distance < pulseTime && cell->distance > pulseTime - 32.0f)
-    {
-        _entity->color = (Vector4){
-            fabs(1.0f - _entity->color.x),
-            fabs(1.0f - _entity->color.y),
-            fabs(1.0f - _entity->color.z),
-            1.0f};
-    }
+    ball->pulseTime += 0.001f;
 
-    if (pulseTime > sqrtf(_app->windowWidth * _app->windowWidth +
-                          _app->windowHeight * _app->windowHeight))
+    if (cell->distance < ball->pulseTime && cell->distance > ball->pulseTime - 32.0f)
     {
-        pulseTime = 0.0f;
+        _entity->color = (Vector4){1.0f, 1.0f, 1.0f, 1.0f};
     }
 }
 void InvertedPulseChange(AppContext *_app, Entity *_entity)
 {
     Cell *cell = (Cell *)_entity->data;
+    Ball *ball = cell->ball;
     float dx = _entity->transform.position.x - _app->windowWidth / 2.0f;
     float dy = _entity->transform.position.y - _app->windowHeight / 2.0f;
 
     cell->distance = sqrtf(dx * dx + dy * dy);
 
-    static float inversePulse = 848.5f; // its this: sqrtf(_app->windowWidth * _app->windowWidth + _app->windowHeight * _app->windowHeight
-    inversePulse -= 0.001f;
+    ball->inversePulseTime -= 0.001f;
 
-    if (cell->distance > inversePulse && cell->distance < inversePulse + 32.0f)
+    if (cell->distance > ball->inversePulseTime && cell->distance < ball->inversePulseTime + 32.0f)
     {
-        _entity->color = (Vector4){fabs(1.0f - _entity->color.x), fabs(1.0f - _entity->color.y), fabs(1.0f - _entity->color.z), 1.0f};
-    }
-    if (inversePulse <= 0)
-    {
-        inversePulse = 848.5f;
+        _entity->color = (Vector4){0.0f, 0.0f, 0.0f, 1.0f};
     }
 }
-void PulseBoth(AppContext *app, Entity *entity)
+void ResetPulse(AppContext *app, Entity *entity)
 {
     PulseChange(app, entity);
     InvertedPulseChange(app, entity);
@@ -190,25 +177,60 @@ void RandomChange(AppContext *_app, Entity *_entity)
         cell->var = rand() % 500 + 500;
     }
 }
-//Big plans 20 rows 21 columns
-//6 Chars per line
-//4 lines (maybe 3 to be safe)
-void DrawLetterH(AppContext *app, Entity *entity, int startGX, int startGY)
+// Big plans 20 rows 21 columns
+// 6 Chars per line
+// 4 lines (maybe 3 to be safe)
+
+// Valid gx 3, 7, 11, 15
+// Valid gy 2, 8, 14
+void DrawWord(AppContext *app, Entity *entity, const char *str, int gx, int gy, Vector4 color)
 {
-    Cell *cell = (Cell*)entity->data;
+    for (int i = 0; str[i] != '\0'; i++)
+    {
+        DrawLetter(app, entity, str[i], gx + i * 4, gy, color);
+    }
+}
+void DrawLetter(AppContext *_app, Entity *_entity, char letter, int startGX, int startGY, Vector4 color)
+{
+    Cell *cell = (Cell *)_entity->data;
 
-    //grid coords
+    if (letter < 'A' || letter > 'Z')
+        return;
 
-    const int glyph_H[5][3] = {
-        {1,0,1},
-        {1,0,1},
-        {1,1,1},
-        {1,0,1},
-        {1,0,1}
-    };
+    int glyphIndex = letter - 'A';
+    const int (*glyph)[3] = font[glyphIndex];
 
     int localX = cell->gx - startGX;
-    int localY = cell->gy - startGY; 
+    int localY = cell->gy - startGY;
+
+    // Only consider cells inside the letter bounds
+    if (localX >= 0 && localX < 3 && localY >= 0 && localY < 5)
+    {
+        if (glyph[localY][localX])
+        {
+            _entity->color = color; // ON
+        }
+        else
+        {
+            _entity->color = (Vector4){0.0f, 0.0f, 0.0f, 1.0f}; // OFF
+        }
+    }
+}
+void DrawLetterH(AppContext *app, Entity *entity, int startGX, int startGY)
+{
+    Cell *cell = (Cell *)entity->data;
+
+    // grid coords
+
+    const int glyph_H[5][3] = {
+        {1, 0, 1},
+        {1, 0, 1},
+        {1, 1, 1},
+        {1, 0, 1},
+        {1, 0, 1}};
+
+    int localX = cell->gx - startGX;
+    int localY = cell->gy - startGY;
 
     // Only consider cells inside the letter bounds
     if (localX >= 0 && localX < 3 && localY >= 0 && localY < 5)
