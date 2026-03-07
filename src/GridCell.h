@@ -16,6 +16,7 @@ typedef struct
     void (*Animate)(AppContext *, Entity *);
 } Cell;
 
+// I may have gone overboard
 void DrawLetter(AppContext *_app, Entity *_entity, char letter, int startGX, int startGY, Vector4 color);
 void DrawWord(AppContext *app, Entity *entity, const char *str, int gx, int gy, Vector4 color);
 void RandomChange(AppContext *_app, Entity *_entity);
@@ -23,8 +24,11 @@ void PulseChange(AppContext *_app, Entity *_entity);
 void InvertedPulseChange(AppContext *_app, Entity *_entity);
 void ScrollRight(AppContext *_app, Entity *_entity);
 void ResetPulse(AppContext *app, Entity *entity);
-void DrawLetterH(AppContext *app, Entity *entity, int startGX, int startGY);
+void ScoreRed(AppContext *_app, Entity *_entity);
+void ScoreBlue(AppContext *_app, Entity *_entity);
 Vector4 PositionColor(Vector3 position);
+void DrawNumber(AppContext *app, Entity *entity, int number, int startGX, int startGY, Vector4 color);
+void CountCollisions(AppContext *_app, Entity *_entity);
 
 void CellStart(AppContext *_app, Entity *_entity)
 {
@@ -48,11 +52,22 @@ void CellStart(AppContext *_app, Entity *_entity)
 void CellUpdate(AppContext *_app, Entity *_entity)
 {
     Cell *cell = (Cell *)_entity->data;
-
-    if (cell->ball->scoreBoard == SCORE)
+    cell->Animate = CountCollisions;
+    if (cell->ball->scoreBoard == REDSCORE)
     {
-
         cell->Animate = ResetPulse;
+        if (cell->ball->pulseTime >= 848.5f && cell->ball->inversePulseTime <= 0)
+        {
+            cell->Animate = ScoreRed;
+        }
+    }
+    if (cell->ball->scoreBoard == BLUESCORE)
+    {
+        cell->Animate = ResetPulse;
+        if (cell->ball->pulseTime >= 848.5f && cell->ball->inversePulseTime <= 0)
+        {
+            cell->Animate = ScoreBlue;
+        }
     }
     if (GetKey(_app, SDL_SCANCODE_E))
     {
@@ -60,6 +75,8 @@ void CellUpdate(AppContext *_app, Entity *_entity)
     }
     else if (GetKey(_app, SDL_SCANCODE_R))
     {
+        cell->ball->pulseTime = 0.0f;
+        cell->ball->inversePulseTime = 848.5f;
         cell->Animate = ResetPulse;
     }
     else if (GetKey(_app, SDL_SCANCODE_T))
@@ -152,10 +169,10 @@ void InvertedPulseChange(AppContext *_app, Entity *_entity)
         _entity->color = (Vector4){0.0f, 0.0f, 0.0f, 1.0f};
     }
 }
-void ResetPulse(AppContext *app, Entity *entity)
+void ResetPulse(AppContext *_app, Entity *_entity)
 {
-    PulseChange(app, entity);
-    InvertedPulseChange(app, entity);
+    PulseChange(_app, _entity);
+    InvertedPulseChange(_app, _entity);
 }
 void RandomChange(AppContext *_app, Entity *_entity)
 {
@@ -181,8 +198,8 @@ void RandomChange(AppContext *_app, Entity *_entity)
 // 6 Chars per line
 // 4 lines (maybe 3 to be safe)
 
-// Valid gx 3, 7, 11, 15
-// Valid gy 2, 8, 14
+// Valid gx LEFT->RIGTH 3, 7, 11, 15
+// Valid gy DOWN->UP 2, 8, 14
 void DrawWord(AppContext *app, Entity *entity, const char *str, int gx, int gy, Vector4 color)
 {
     for (int i = 0; str[i] != '\0'; i++)
@@ -216,32 +233,55 @@ void DrawLetter(AppContext *_app, Entity *_entity, char letter, int startGX, int
         }
     }
 }
-void DrawLetterH(AppContext *app, Entity *entity, int startGX, int startGY)
+// Valid gx LEFT->RIGTH 3, 7, 11, 15
+// Valid gy DOWN->UP 2, 8, 14
+void DrawNumber(AppContext *app, Entity *entity, int number, int startGX, int startGY, Vector4 color)
 {
+    if (number < 0 || number > 9)
+        return;
+
+    const int (*glyph)[3] = fontNumbers[number];
+
     Cell *cell = (Cell *)entity->data;
-
-    // grid coords
-
-    const int glyph_H[5][3] = {
-        {1, 0, 1},
-        {1, 0, 1},
-        {1, 1, 1},
-        {1, 0, 1},
-        {1, 0, 1}};
-
     int localX = cell->gx - startGX;
     int localY = cell->gy - startGY;
 
-    // Only consider cells inside the letter bounds
     if (localX >= 0 && localX < 3 && localY >= 0 && localY < 5)
     {
-        if (glyph_H[localY][localX])
-        {
-            entity->color = (Vector4){1.0f, 1.0f, 1.0f, 1.0f}; // ON
-        }
+        if (glyph[localY][localX])
+            entity->color = color;
         else
-        {
-            entity->color = (Vector4){0.0f, 0.0f, 0.0f, 1.0f}; // OFF
-        }
+            entity->color = (Vector4){0, 0, 0, 1};
     }
+}
+
+void ScoreRed(AppContext *_app, Entity *_entity)
+{
+    Cell *cell = (Cell *)_entity->data;
+    Ball *ball = cell->ball;
+    DrawWord(_app, _entity, "GOAL", 3, 14, InitVector4(1.0f, 1.0f, 1.0f, 1.0f));
+    DrawWord(_app, _entity, "RED", 3, 8, InitVector4(1.0f, 0.0f, 0.0f, 1.0f));
+    DrawNumber(_app, _entity, ball->rightScore, 9, 2, InitVector4(1.0f, 0.0f, 0.0f, 1.0f));
+}
+void ScoreBlue(AppContext *_app, Entity *_entity)
+{
+    Cell *cell = (Cell *)_entity->data;
+    Ball *ball = cell->ball;
+    DrawWord(_app, _entity, "GOAL", 3, 14, InitVector4(1.0f, 1.0f, 1.0f, 1.0f));
+    DrawWord(_app, _entity, "BLUE", 3, 8, InitVector4(0.0f, 0.0f, 1.0f, 1.0f));
+    DrawNumber(_app, _entity, ball->leftScore, 9, 2, InitVector4(0.0f, 0.0f, 1.0f, 1.0f));
+}
+void CountCollisions(AppContext *_app, Entity *_entity)
+{
+    Cell *cell = (Cell *)_entity->data;
+    Ball *ball = cell->ball;
+    Vector4 color = ball->color;
+    if (ball->collisionCount > 5)
+    {
+        color = PositionColor(_entity->transform.position);
+    }
+    int ones = ball->collisionCount % 10;
+    int tens = (ball->collisionCount/10) % 10;
+    DrawNumber(_app, _entity, tens, 7, 8, color);
+    DrawNumber(_app, _entity, ones, 11, 8, color);
 }

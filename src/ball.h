@@ -17,7 +17,8 @@ enum CollisionSide
 enum ScoreBoard
 {
     BASIC,
-    SCORE,
+    REDSCORE,
+    BLUESCORE,
     TEST
 };
 
@@ -25,6 +26,8 @@ typedef struct
 {
     int leftScore;
     int rightScore;
+    int collisionCount;
+    Vector4 color;
     enum ScoreBoard scoreBoard;
 
     float pulseTime;
@@ -42,9 +45,11 @@ void BallStart(AppContext *_app, Entity *_entity)
     _entity->color = InitVector4(1.0f, 1.0f, 1.0f, 1.0f);
 
     _entity->transform.scale = InitVector3(32.0f, 32.0f, 1.0f);
-    Ball* ball = (Ball*)_entity->data;
+    Ball *ball = (Ball *)_entity->data;
+    ball->collisionCount = 0; // its this: sqrtf(_app->windowWidth * _app->windowWidth + _app->windowHeight * _app->windowHeight
+    ball->color = _entity->color;
     ball->pulseTime = 0.0f;
-    ball->inversePulseTime = 848.5f;// its this: sqrtf(_app->windowWidth * _app->windowWidth + _app->windowHeight * _app->windowHeight
+    ball->inversePulseTime = 848.5f;
 }
 
 void BallUpdate(AppContext *_app, Entity *_entity)
@@ -52,17 +57,21 @@ void BallUpdate(AppContext *_app, Entity *_entity)
     Ball *ball = (Ball *)_entity->data;
     if (_entity->transform.position.x <= 0.0f || _entity->transform.position.x >= _app->windowWidth)
     {
-        ball->scoreBoard = SCORE;
         if (_entity->transform.position.x <= 0.0f)
         {
             ball->rightScore++;
+            ball->scoreBoard = REDSCORE;
         }
         else if (_entity->transform.position.x >= _app->windowWidth)
         {
             ball->leftScore++;
+            ball->scoreBoard = BLUESCORE;
         }
+        ball->collisionCount = 0;
         _entity->transform.position = InitVector3(_app->windowHeight * 0.5f, _app->windowHeight * 0.5f, 0.0f);
         _entity->velocity = InitVector2(0.0f, 0.0f);
+        ball->pulseTime = 0.0f;
+        ball->inversePulseTime = 848.5f;
     }
 
     if (GetKeyDown(_app, SDL_SCANCODE_P))
@@ -105,12 +114,14 @@ void BallUpdate(AppContext *_app, Entity *_entity)
     if ((lPaddle == LEFT || lPaddle == RIGHT) ||
         (rPaddle == LEFT || rPaddle == RIGHT))
     {
+        ball->collisionCount++;
         _entity->velocity.x *= -1.0f;
         _entity->velocity = Vec2Mul(_entity->velocity, 1.15f);
     }
     else if ((lPaddle == TOP || lPaddle == BOTTOM) ||
              (rPaddle == TOP || rPaddle == BOTTOM))
     {
+        ball->collisionCount++;
         _entity->velocity = Vec2Mul(_entity->velocity, -1.0f);
     }
 
@@ -184,6 +195,7 @@ Entity *SpawnBall(AppContext *_app, Entity *_entity)
 
 enum CollisionSide Collision(Entity *_ball, Entity *_paddle)
 {
+    Ball *ball = (Ball *)_ball->data;
     float distanceX = _ball->transform.position.x - _paddle->transform.position.x;
     float distanceY = _ball->transform.position.y - _paddle->transform.position.y;
 
@@ -195,6 +207,7 @@ enum CollisionSide Collision(Entity *_ball, Entity *_paddle)
         if (fabs(intersectX) < fabs(intersectY))
         {
             _ball->color = _paddle->color;
+            ball->color = _paddle->color;
             // Collision on X axis
             if (distanceX > 0)
             {

@@ -77,32 +77,32 @@ int main(int argc, char *argv[])
     float cellSize = 32.0f;
     float border = 2.0f;
     int gx = 0;
-for (float x = -cellSize; x <= app.windowHeight + 2.0f * cellSize; x += cellSize + border)
-{
-    int gy = 0;
-    for (float y = -cellSize; y <= app.windowWidth + 2.0f * cellSize; y += cellSize + border)
+    for (float x = -cellSize; x <= app.windowHeight + 2.0f * cellSize; x += cellSize + border)
     {
-        Entity* cell = Spawn(&scene);
-        cell->transform.position = InitVector3(x, y, -0.001f);
+        int gy = 0;
+        for (float y = -cellSize; y <= app.windowWidth + 2.0f * cellSize; y += cellSize + border)
+        {
+            Entity *cell = Spawn(&scene);
+            cell->transform.position = InitVector3(x, y, -0.001f);
 
-        Cell* c = calloc(1, sizeof(Cell));
-        c->gx = gx; // integer index
-        c->gy = gy; // integer index
-        cell->data = c;
+            Cell *c = calloc(1, sizeof(Cell));
+            c->gx = gx; // integer index
+            c->gy = gy; // integer index
+            cell->data = c;
 
-        cell->image = &squareImage;
-        cell->model = &model;
-        cell->shaderId = shaderProgram;
+            cell->image = &squareImage;
+            cell->model = &model;
+            cell->shaderId = shaderProgram;
 
-        cell->Start = CellStart;
-        cell->Update = CellUpdate;
-        cell->Draw = CellDraw;
-        cell->OnDestroy = CellDestroy;
+            cell->Start = CellStart;
+            cell->Update = CellUpdate;
+            cell->Draw = CellDraw;
+            cell->OnDestroy = CellDestroy;
 
-        gy++;
+            gy++;
+        }
+        gx++;
     }
-    gx++;
-}
 
     Entity *ball = Spawn(&scene);
     ball->transform.position = InitVector3(app.windowWidth * 0.5f, app.windowHeight * 0.5f, 0.0f);
