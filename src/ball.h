@@ -18,8 +18,11 @@ enum CollisionSide
 enum ScoreBoard
 {
     BASIC,
+    START,
     REDSCORE,
     BLUESCORE,
+    COUNT,
+    DISCO,
     TEST
 };
 
@@ -28,6 +31,7 @@ typedef struct
     int leftScore;
     int rightScore;
     int collisionCount;
+    int pulseFinished;
     Vector4 color;
     enum ScoreBoard scoreBoard;
     float animTime;
@@ -51,6 +55,7 @@ void BallStart(AppContext *_app, Entity *_entity)
     ball->color = _entity->color;
     ball->pulseTime = 0.0f;
     ball->inversePulseTime = 848.5f;
+    ball->scoreBoard = START;
 }
 
 void BallUpdate(AppContext *_app, Entity *_entity)
@@ -68,9 +73,10 @@ void BallUpdate(AppContext *_app, Entity *_entity)
             ball->leftScore++;
             ball->scoreBoard = BLUESCORE;
         }
-        ball->collisionCount = 0;
         _entity->transform.position = InitVector3(_app->windowHeight * 0.5f, _app->windowHeight * 0.5f, 0.0f);
         _entity->velocity = InitVector2(0.0f, 0.0f);
+        ball->collisionCount = 0;
+        ball->pulseFinished = 0;
         ball->pulseTime = 0.0f;
         ball->inversePulseTime = 848.5f;
     }

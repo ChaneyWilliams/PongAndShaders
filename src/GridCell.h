@@ -29,6 +29,8 @@ void ScoreBlue(AppContext *_app, Entity *_entity);
 Vector4 PositionColor(Vector3 position);
 void DrawNumber(AppContext *app, Entity *entity, int number, int startGX, int startGY, Vector4 color);
 void CountCollisions(AppContext *_app, Entity *_entity);
+void StartGame(AppContext *_app, Entity *_entity);
+void ResetDisco(AppContext *_app, Entity *_entity);
 
 void CellStart(AppContext *_app, Entity *_entity)
 {
@@ -52,44 +54,81 @@ void CellStart(AppContext *_app, Entity *_entity)
 void CellUpdate(AppContext *_app, Entity *_entity)
 {
     Cell *cell = (Cell *)_entity->data;
+    // For myself because I will forget how this spaghetti goes
+    // When someone scores, Ball.h resets:
+    // the ball pos, the ball velocity, the collision count,
+    // pulseFinished, pulseTime, and inversePulseTime to their default vaules
     if (cell->ball->scoreBoard == REDSCORE)
     {
         cell->Animate = ResetPulse;
-        if (cell->ball->pulseTime >= 848.5f && cell->ball->inversePulseTime <= 0)
+        if (cell->ball->pulseFinished)
         {
             cell->Animate = ScoreRed;
-            cell->ball->animTime = 0.0f;
+            if (cell->ball->animTime >= 2.0f)
+            {
+                cell->ball->scoreBoard = BASIC;
+                cell->ball->pulseFinished = 0;
+            }
         }
     }
-    if (cell->ball->scoreBoard == BLUESCORE)
+    else if (cell->ball->scoreBoard == BLUESCORE)
     {
         cell->Animate = ResetPulse;
-        if (cell->ball->pulseTime >= 848.5f && cell->ball->inversePulseTime <= 0)
+        if (cell->ball->pulseFinished)
         {
             cell->Animate = ScoreBlue;
-            cell->ball->animTime = 0.0f;
+            if (cell->ball->animTime >= 2.0f)
+            {
+                cell->ball->scoreBoard = BASIC;
+                cell->ball->pulseFinished = 0;
+            }
         }
+    }
+    // ALL CHECKS BELOW MUST SET animTime = 0
+    // these are the animations that play after a score
+    // and animTime isnt set back to zero elsewhere
+    else if (cell->ball->scoreBoard == BASIC)
+    {
+        int pickAnim = rand() % 10;
+        printf("%i", pickAnim);
+        if (pickAnim < 5)
+        {
+            cell->ball->scoreBoard = COUNT;
+        }
+        else if (pickAnim >= 5)
+        {
+            cell->ball->scoreBoard = DISCO;
+        }
+    }
+    else if (cell->ball->scoreBoard == COUNT)
+    {
+        cell->Animate = ResetPulse;
+        if (cell->ball->pulseFinished)
+        {
+            cell->ball->animTime = 0.0;
+            cell->Animate = CountCollisions;
+        }
+    }
+    else if (cell->ball->scoreBoard == DISCO)
+    {
+        cell->Animate = ResetDisco;
+        if (cell->ball->pulseFinished)
+        {
+            cell->ball->animTime = 0.0f;
+            if (_entity->color.x == 0.0f && _entity->color.y == 0.0f && _entity->color.z == 0.0f)
+            {
+                _entity->color = PositionColor(_entity->transform.position);
+            }
+            cell->Animate = RandomChange;
+        }
+    }
+    else if (cell->ball->scoreBoard == START)
+    {
+        cell->Animate = StartGame;
     }
     if (GetKey(_app, SDL_SCANCODE_E))
     {
         cell->Animate = ScrollRight;
-    }
-    else if (GetKey(_app, SDL_SCANCODE_R))
-    {
-        cell->ball->pulseTime = 0.0f;
-        cell->ball->inversePulseTime = 848.5f;
-        cell->Animate = ResetPulse;
-    }
-    else if (GetKey(_app, SDL_SCANCODE_T))
-    {
-        cell->Animate = RandomChange;
-    }
-    else if (GetKey(_app, SDL_SCANCODE_H))
-    {
-        Vector4 color = PositionColor(_entity->transform.position);
-        DrawWord(_app, _entity, "HEY", 3, 14, color);
-        DrawWord(_app, _entity, "HIT", 3, 8, color);
-        DrawWord(_app, _entity, "RKEY", 3, 2, color);
     }
     if (cell->Animate)
     {
@@ -160,34 +199,54 @@ void InvertedPulseChange(AppContext *_app, Entity *_entity)
         _entity->color = (Vector4){0.0f, 0.0f, 0.0f, 1.0f};
     }
 }
+void ImplodeColor(AppContext *_app, Entity *_entity)
+{
+    Cell *cell = (Cell *)_entity->data;
+
+    cell->ball->inversePulseTime -= 0.001f;
+
+    if (cell->distance > cell->ball->inversePulseTime && cell->distance < cell->ball->inversePulseTime + 32.0f)
+    {
+        _entity->color = PositionColor(_entity->transform.position);
+    }
+}
 void ResetPulse(AppContext *_app, Entity *_entity)
 {
     Cell *cell = (Cell *)_entity->data;
-    if (cell->ball->animTime < 30.0f)
+
+    PulseChange(_app, _entity);
+    InvertedPulseChange(_app, _entity);
+
+    if (cell->ball->pulseTime >= 848.5f && cell->ball->inversePulseTime <= 0)
     {
-        PulseChange(_app, _entity);
-        InvertedPulseChange(_app, _entity);
+        cell->ball->pulseFinished = 1;
+        cell->ball->pulseTime = 0.0f;
+        cell->ball->inversePulseTime = 848.5;
     }
-    else
+}
+void ResetDisco(AppContext *_app, Entity *_entity)
+{
+    Cell *cell = (Cell *)_entity->data;
+    PulseChange(_app, _entity);
+    ImplodeColor(_app, _entity);
+    if (cell->ball->pulseTime >= 848.5f && cell->ball->inversePulseTime <= 0)
     {
-        cell->ball->animTime++;
+        cell->ball->pulseFinished = 1;
+        cell->ball->pulseTime = 0.0f;
+        cell->ball->inversePulseTime = 848.5;
     }
 }
 void RandomChange(AppContext *_app, Entity *_entity)
 {
     Cell *cell = (Cell *)_entity->data;
 
-    cell->var--;
+    cell->var -= _app->deltaTime;
 
     if (cell->var <= 0)
     {
         if (rand() % 2 == 0)
         {
-            _entity->color = (Vector4){
-                fabs(1.0f - _entity->color.x),
-                fabs(1.0f - _entity->color.y),
-                fabs(1.0f - _entity->color.z),
-                1.0f};
+            _entity->color = (Vector4){fabs(1.0f - _entity->color.x), fabs(1.0f - _entity->color.y), fabs(1.0f - _entity->color.z), 1.0f};
         }
 
         cell->var = rand() % 500 + 500;
@@ -258,16 +317,23 @@ void ScoreRed(AppContext *_app, Entity *_entity)
 {
     Cell *cell = (Cell *)_entity->data;
     DrawWord(_app, _entity, "GOAL", 3, 14, InitVector4(1.0f, 1.0f, 1.0f, 1.0f));
-    DrawWord(_app, _entity, "RED", 3, 8, InitVector4(1.0f, 0.0f, 0.0f, 1.0f));
+    DrawWord(_app, _entity, "RED", 5, 8, InitVector4(1.0f, 0.0f, 0.0f, 1.0f));
     DrawNumber(_app, _entity, cell->ball->rightScore, 9, 2, InitVector4(1.0f, 0.0f, 0.0f, 1.0f));
+    if (cell->gx == 0 && cell->gy == 0) // only once cell increments the timer
+    {
+        cell->ball->animTime += _app->deltaTime;
+    }
 }
 void ScoreBlue(AppContext *_app, Entity *_entity)
 {
     Cell *cell = (Cell *)_entity->data;
-    cell->ball->animTime += _app->deltaTime;
     DrawWord(_app, _entity, "GOAL", 3, 14, InitVector4(1.0f, 1.0f, 1.0f, 1.0f));
     DrawWord(_app, _entity, "BLUE", 3, 8, InitVector4(0.0f, 0.0f, 1.0f, 1.0f));
     DrawNumber(_app, _entity, cell->ball->leftScore, 9, 2, InitVector4(0.0f, 0.0f, 1.0f, 1.0f));
+    if (cell->gx == 0 && cell->gy == 0) // only once cell increments the timer
+    {
+        cell->ball->animTime += _app->deltaTime;
+    }
 }
 void CountCollisions(AppContext *_app, Entity *_entity)
 {
@@ -281,4 +347,11 @@ void CountCollisions(AppContext *_app, Entity *_entity)
     int tens = (cell->ball->collisionCount / 10) % 10;
     DrawNumber(_app, _entity, tens, 7, 8, color);
     DrawNumber(_app, _entity, ones, 11, 8, color);
+}
+void StartGame(AppContext *_app, Entity *_entity)
+{
+    Cell *cell = (Cell *)_entity->data;
+    DrawWord(_app, _entity, "HEY", 5, 14, InitVector4(0.7f, 0.7f, 0.7f, 1.0f));
+    DrawWord(_app, _entity, "HIT", 5, 8, InitVector4(0.7f, 0.7f, 0.7f, 1.0f));
+    DrawWord(_app, _entity, "SPACE", 1, 2, InitVector4(0.7f, 0.7f, 0.7f, 1.0f));
 }
