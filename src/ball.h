@@ -45,6 +45,8 @@ typedef struct
     float fireworkPulse[5];
     float fireworkLife[5];
     float fireworkSpawnTimer;
+    Vector3 trails[10];
+    int index;
 } Ball;
 
 Entity *SpawnBall(AppContext *_app, Entity *_entity);
@@ -65,11 +67,22 @@ void BallStart(AppContext *_app, Entity *_entity)
     ball->inversePulseTime = 848.5f;
     ball->scoreBoard = START;
     ball->gameOver = 0;
+    for (int i = 0; i < 10; i++)
+        ball->trails[i] = _entity->transform.position;
+    ball->index = 0;
 }
 
 void BallUpdate(AppContext *_app, Entity *_entity)
 {
     Ball *ball = (Ball *)_entity->data;
+    Vector3 lastPos = ball->trails[(ball->index - 1 + 10) % 10];
+
+    if (Vec2Distance(InitVector2(lastPos.x, lastPos.y), InitVector2(_entity->transform.position.x, _entity->transform.position.y)) > 10.0f)
+    {
+        ball->trails[ball->index] = _entity->transform.position;
+        ball->index = (ball->index + 1) % 10;
+    }
+
     char title[32];
     sprintf(title, "Blue: %i | Red %i", ball->leftScore, ball->rightScore);
     SetWindowTitle(_app, title);
@@ -158,6 +171,7 @@ void BallUpdate(AppContext *_app, Entity *_entity)
 
 void BallDraw(AppContext *_app, Entity *_entity)
 {
+    Ball *ballStr = (Ball *)_entity->data;
     // ---- Base transform (no scale) ----
     Matrix4 base = IdentityMatrix4();
     Mat4Translate(&base, _entity->transform.position);
@@ -171,11 +185,20 @@ void BallDraw(AppContext *_app, Entity *_entity)
 
     // ---- HALO PASS ----
     glDepthMask(GL_FALSE);
-    Matrix4 halo = base;
-    Mat4Scale(&halo, InitVector3(_entity->transform.scale.x * 1.4f, _entity->transform.scale.y * 1.4f, _entity->transform.scale.z));
-    ShaderSetVector4(_entity->shaderId, "COLOR", (Vector4){_entity->color.x + 0.25f, _entity->color.y + 0.25f, _entity->color.z + .25f, 0.3f});
-    ShaderSetMatrix4(_entity->shaderId, "TRANSFORM", halo);
-    DrawModel(*_entity->model);
+    for (int i = 0; i < 10; i++)
+    {
+        int index = (ballStr->index - 1 - i + 10) % 10; // newest first
+        Vector3 pos = ballStr->trails[index];
+
+        Matrix4 trailMat = IdentityMatrix4();
+        Mat4Translate(&trailMat, pos); // translate to trail position
+        Mat4Scale(&trailMat, InitVector3(_entity->transform.scale.x, _entity->transform.scale.y, 1.0f));
+
+        float alpha = 0.2f + 0.8f * (1.0f - (float)i / 10.0f); // fading
+        ShaderSetVector4(_entity->shaderId, "COLOR", (Vector4){1.0f, 1.0f, 1.0f, alpha});
+        ShaderSetMatrix4(_entity->shaderId, "TRANSFORM", trailMat);
+        DrawModel(*_entity->model);
+    }
     glDepthMask(GL_TRUE);
 
     // ---- BALL PASS ----
