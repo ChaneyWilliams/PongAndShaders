@@ -12,11 +12,12 @@ typedef struct
     int gy;
     float distance;
     Ball *ball;
-    int reactedToScore;
+    Vector3 worldPos;
     void (*Animate)(AppContext *, Entity *);
 } Cell;
 
 // I may have gone overboard
+// BEHOLD YE EFFICIENCY AND DESPAIR
 void DrawLetter(AppContext *_app, Entity *_entity, char letter, int startGX, int startGY, Vector4 color);
 void DrawWord(AppContext *app, Entity *entity, const char *str, int gx, int gy, Vector4 color);
 void RandomChange(AppContext *_app, Entity *_entity);
@@ -31,12 +32,14 @@ void DrawNumber(AppContext *app, Entity *entity, int number, int startGX, int st
 void CountCollisions(AppContext *_app, Entity *_entity);
 void StartGame(AppContext *_app, Entity *_entity);
 void ResetDisco(AppContext *_app, Entity *_entity);
+void FireWorks(AppContext *_app, Entity *_entity);
 
 void CellStart(AppContext *_app, Entity *_entity)
 {
     Cell *cell = (Cell *)_entity->data;
     Entity *ball = Find(&_app->scene, "Ball");
     cell->ball = (Ball *)ball->data;
+    cell->worldPos = _entity->transform.position;
 
     _entity->transform.rotation = 0.0f;
     _entity->color = (Vector4){0.0f, 0.0f, 0.0f, 1.0f}; //(PositionColor(_entity->transform.position));
@@ -58,6 +61,8 @@ void CellUpdate(AppContext *_app, Entity *_entity)
     // When someone scores, Ball.h resets:
     // the ball pos, the ball velocity, the collision count,
     // pulseFinished, pulseTime, and inversePulseTime to their default vaules
+    // The ball then tells who scored, resets the background, displays the score
+    // then it goes to BASIC mode where it randomly chooses a background animation
     if (cell->ball->scoreBoard == REDSCORE)
     {
         cell->Animate = ResetPulse;
@@ -97,7 +102,7 @@ void CellUpdate(AppContext *_app, Entity *_entity)
         }
         else if (pickAnim >= 5)
         {
-            cell->ball->scoreBoard = DISCO;
+            cell->ball->scoreBoard = FIREWORK;
         }
     }
     else if (cell->ball->scoreBoard == COUNT)
@@ -107,6 +112,15 @@ void CellUpdate(AppContext *_app, Entity *_entity)
         {
             cell->ball->animTime = 0.0;
             cell->Animate = CountCollisions;
+        }
+    }
+    else if (cell->ball->scoreBoard == FIREWORK)
+    {
+        cell->Animate = ResetPulse;
+        if (cell->ball->pulseFinished)
+        {
+            cell->ball->animTime = 0.0f;
+            cell->Animate = FireWorks;
         }
     }
     else if (cell->ball->scoreBoard == DISCO)
@@ -129,6 +143,28 @@ void CellUpdate(AppContext *_app, Entity *_entity)
     if (GetKey(_app, SDL_SCANCODE_E))
     {
         cell->Animate = ScrollRight;
+    }
+    if (cell->gx == 0 && cell->gy == 0)
+    {
+        cell->ball->fireworkSpawnTimer -= _app->deltaTime;
+
+        if (cell->ball->fireworkSpawnTimer <= 0)
+        {
+            int i = rand() % 5;
+
+            cell->ball->fireworkPos[i] = InitVector3(
+                rand() % _app->windowWidth,
+                rand() % _app->windowHeight,
+                0);
+
+            cell->ball->fireworkRadius[i] = 0.0f;
+            cell->ball->fireworkTime[i] = 1.0f;
+
+            cell->ball->fireworkPulse[i] = 0.0f;
+            cell->ball->fireworkLife[i] = 1.5f;
+
+            cell->ball->fireworkSpawnTimer = (rand() % 200) / 100.0f + 0.5f;
+        }
     }
     if (cell->Animate)
     {
@@ -162,6 +198,8 @@ void CellDestroy(AppContext *_app, Entity *_entity)
 
 void ScrollRight(AppContext *_app, Entity *_entity)
 {
+    Cell *cell = (Cell *)_entity->data;
+
     float scrollSpeed = 0.1f;
 
     // Move toward top-right
@@ -197,6 +235,7 @@ void InvertedPulseChange(AppContext *_app, Entity *_entity)
     if (cell->distance > cell->ball->inversePulseTime && cell->distance < cell->ball->inversePulseTime + 32.0f)
     {
         _entity->color = (Vector4){0.0f, 0.0f, 0.0f, 1.0f};
+        _entity->transform.position = cell->worldPos;
     }
 }
 void ImplodeColor(AppContext *_app, Entity *_entity)
@@ -251,6 +290,33 @@ void RandomChange(AppContext *_app, Entity *_entity)
 
         cell->var = rand() % 500 + 500;
     }
+}
+void FireWorks(AppContext *_app, Entity *_entity)
+{
+    Cell *cell = (Cell *)_entity->data;
+
+    for (int i = 0; i < 5; i++)
+    {
+        if (cell->ball->fireworkLife[i] <= 0)
+            continue;
+
+        cell->ball->fireworkPulse[i] += 300.0f * 0.001f;
+        cell->ball->fireworkLife[i] -= _app->deltaTime;
+
+        Vector3 pos = cell->ball->fireworkPos[i];
+
+        float dx = _entity->transform.position.x - pos.x;
+        float dy = _entity->transform.position.y - pos.y;
+
+        float dist = sqrtf(dx * dx + dy * dy);
+
+        if (dist < cell->ball->fireworkPulse[i] &&
+            dist > cell->ball->fireworkPulse[i] - 32.0f)
+        {
+            _entity->color = PositionColor(pos);
+        }
+    }
+    ScrollRight(_app, _entity);
 }
 // Big plans 20 rows 21 columns
 // 6 Chars per line

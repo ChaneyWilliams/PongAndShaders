@@ -22,6 +22,7 @@ enum ScoreBoard
     REDSCORE,
     BLUESCORE,
     COUNT,
+    FIREWORK,
     DISCO,
     TEST
 };
@@ -34,9 +35,16 @@ typedef struct
     int pulseFinished;
     Vector4 color;
     enum ScoreBoard scoreBoard;
+    int gameOver;
     float animTime;
     float pulseTime;
     float inversePulseTime;
+    Vector3 fireworkPos[5];
+    float fireworkTime[5];
+    float fireworkRadius[5];
+    float fireworkPulse[5];
+    float fireworkLife[5];
+    float fireworkSpawnTimer;
 } Ball;
 
 Entity *SpawnBall(AppContext *_app, Entity *_entity);
@@ -44,6 +52,7 @@ Entity *Find(Scene **_scene, const char *_name);
 Vector4 PositionColor(Vector3 position);
 Entity *Find(Scene **_scene, const char *_name);
 enum CollisionSide Collision(Entity *_ball, Entity *_paddle);
+void BallRoomBlitz(AppContext *_app, Entity *_entity, Vector4 color);
 
 void BallStart(AppContext *_app, Entity *_entity)
 {
@@ -52,15 +61,19 @@ void BallStart(AppContext *_app, Entity *_entity)
     _entity->transform.scale = InitVector3(32.0f, 32.0f, 1.0f);
     Ball *ball = (Ball *)_entity->data;
     ball->collisionCount = 0; // its this: sqrtf(_app->windowWidth * _app->windowWidth + _app->windowHeight * _app->windowHeight
-    ball->color = _entity->color;
     ball->pulseTime = 0.0f;
     ball->inversePulseTime = 848.5f;
     ball->scoreBoard = START;
+    ball->gameOver = 0;
 }
 
 void BallUpdate(AppContext *_app, Entity *_entity)
 {
     Ball *ball = (Ball *)_entity->data;
+    char title[32];
+    sprintf(title, "Blue: %i | Red %i", ball->leftScore, ball->rightScore);
+    SetWindowTitle(_app, title);
+
     if (_entity->transform.position.x <= 0.0f || _entity->transform.position.x >= _app->windowWidth)
     {
         if (_entity->transform.position.x <= 0.0f)
@@ -134,6 +147,13 @@ void BallUpdate(AppContext *_app, Entity *_entity)
 
     Vector3 delta = Vec2ToVec3(Vec2Mul(_entity->velocity, _app->deltaTime));
     _entity->transform.position = Vec3Add(_entity->transform.position, delta);
+    if ((ball->leftScore >= 5 || ball->rightScore >= 5) && !ball->gameOver)
+    {
+        ball->gameOver = 1;
+        ball->scoreBoard = DISCO;
+        Vector4 color = (ball->leftScore > ball->rightScore) ? leftPaddle->color : rightPaddle->color;
+        BallRoomBlitz(_app, _entity, color);
+    }
 }
 
 void BallDraw(AppContext *_app, Entity *_entity)
@@ -213,8 +233,8 @@ enum CollisionSide Collision(Entity *_ball, Entity *_paddle)
     {
         if (fabs(intersectX) < fabs(intersectY))
         {
-            _ball->color = _paddle->color;
             ball->color = _paddle->color;
+            _ball->color = _paddle->color;
             // Collision on X axis
             if (distanceX > 0)
             {
@@ -241,4 +261,24 @@ enum CollisionSide Collision(Entity *_ball, Entity *_paddle)
     }
 
     return NONE;
+}
+void BallRoomBlitz(AppContext *_app, Entity *_entity, Vector4 color)
+{
+    // i dont think it should be spawning as many as it does but eh
+    for (int i = 0; i < _app->windowWidth; i += 10)
+    {
+        printf("Color RGBA: %f, %f, %f, %f\n", _entity->color.x, _entity->color.y, _entity->color.z, _entity->color.w);
+        Entity *ball = Spawn(&(_app->scene));
+        ball->transform.scale = InitVector3(32.0f, 32.0f, 1.0f);
+        ball->transform.position = InitVector3(i, _app->windowHeight - 50, 0.0f);
+        ball->data = calloc(1, sizeof(Ball));
+        ball->image = _entity->image;
+        ball->model = _entity->model;
+        ball->color = _entity->color;
+        ball->velocity = InitVector2(0.0f, -10.0f * ((rand() % 10) + 1));
+        ball->shaderId = _entity->shaderId;
+        ball->Update = BallUpdate;
+        ball->Draw = BallDraw;
+        ball->OnDestroy = BallOnDestroy;
+    }
 }
