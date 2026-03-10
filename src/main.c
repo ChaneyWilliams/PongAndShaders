@@ -26,13 +26,14 @@
 #include "ball.h"
 #include "paddle.h"
 #include "GridCell.h"
-
+//
 //Look at GridCell.h and Ball.h to find pretty much everything
 //or to look at my hyper fixation for a weekend
 //ALSO i had task manager open for a couple of runs and allow to proudly say my big numbers
 //CPU utilization ~25%
 //Memory ~70%
-//
+//also if you dont get srolling to right just run it again
+//but it is a 50/50 chance of seeing that one
 AppContext app;
 
 int main(int argc, char *argv[])

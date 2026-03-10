@@ -15,9 +15,10 @@ typedef struct
     Vector3 worldPos;
     void (*Animate)(AppContext *, Entity *);
 } Cell;
-
+// "Give the background a grid pattern." doesnt specify HOW the grid should be made
+// only that it has to be made so...
 // I may have gone overboard
-// BEHOLD YE EFFICIENCY AND DESPAIR
+// BEHOLD YEE EFFICIENCY AND DESPAIR AT MY NEARLY 500 LINE ANIMATION STATE MACHINE
 void DrawLetter(AppContext *_app, Entity *_entity, char letter, int startGX, int startGY, Vector4 color);
 void DrawWord(AppContext *app, Entity *entity, const char *str, int gx, int gy, Vector4 color);
 void RandomChange(AppContext *_app, Entity *_entity);
@@ -57,12 +58,18 @@ void CellStart(AppContext *_app, Entity *_entity)
 void CellUpdate(AppContext *_app, Entity *_entity)
 {
     Cell *cell = (Cell *)_entity->data;
-    // For myself because I will forget how this spaghetti goes
+    // For myself because I will forget how this spaghetti was cooked
     // When someone scores, Ball.h resets:
     // the ball pos, the ball velocity, the collision count,
     // pulseFinished, pulseTime, and inversePulseTime to their default vaules
     // The ball then tells who scored, resets the background, displays the score
     // then it goes to BASIC mode where it randomly chooses a background animation
+    // the new animation Resets the background again and then plays whatever the coin flip was
+
+
+
+    //both REDSCORE and BLUESCORE track time so the text stays on long enough to read
+    //then it resets
     if (cell->ball->scoreBoard == REDSCORE)
     {
         cell->Animate = ResetPulse;
@@ -140,32 +147,7 @@ void CellUpdate(AppContext *_app, Entity *_entity)
     {
         cell->Animate = StartGame;
     }
-    if (GetKey(_app, SDL_SCANCODE_E))
-    {
-        cell->Animate = ScrollRight;
-    }
-    if (cell->gx == 0 && cell->gy == 0)
-    {
-        cell->ball->fireworkSpawnTimer -= _app->deltaTime;
-
-        if (cell->ball->fireworkSpawnTimer <= 0)
-        {
-            int i = rand() % 5;
-
-            cell->ball->fireworkPos[i] = InitVector3(
-                rand() % _app->windowWidth,
-                rand() % _app->windowHeight,
-                0);
-
-            cell->ball->fireworkRadius[i] = 0.0f;
-            cell->ball->fireworkTime[i] = 1.0f;
-
-            cell->ball->fireworkPulse[i] = 0.0f;
-            cell->ball->fireworkLife[i] = 1.5f;
-
-            cell->ball->fireworkSpawnTimer = (rand() % 200) / 100.0f + 0.5f;
-        }
-    }
+    
     if (cell->Animate)
     {
         cell->Animate(_app, _entity);

@@ -160,6 +160,26 @@ void BallUpdate(AppContext *_app, Entity *_entity)
 
     Vector3 delta = Vec2ToVec3(Vec2Mul(_entity->velocity, _app->deltaTime));
     _entity->transform.position = Vec3Add(_entity->transform.position, delta);
+    ball->fireworkSpawnTimer -= _app->deltaTime;
+
+    if (ball->fireworkSpawnTimer <= 0)
+    {
+        int i = rand() % 5;
+
+        ball->fireworkPos[i] = InitVector3(
+            rand() % _app->windowWidth,
+            rand() % _app->windowHeight,
+            0);
+
+        ball->fireworkRadius[i] = 0.0f;
+        ball->fireworkTime[i] = 1.0f;
+
+        ball->fireworkPulse[i] = 0.0f;
+        ball->fireworkLife[i] = 1.5f;
+
+        ball->fireworkSpawnTimer = (rand() % 200) / 100.0f + 0.5f;
+    }
+
     if ((ball->leftScore >= 5 || ball->rightScore >= 5) && !ball->gameOver)
     {
         ball->gameOver = 1;
