@@ -15,6 +15,10 @@ typedef struct
     Vector3 worldPos;
     void (*Animate)(AppContext *, Entity *);
 } Cell;
+//holy cow this runs better than the shader and theres an extra 363 extra entities
+//all calling their own update, draw, and incrementing their own 
+
+
 // "Give the background a grid pattern." doesnt specify HOW the grid should be made
 // only that it has to be made so...
 // I may have gone overboard

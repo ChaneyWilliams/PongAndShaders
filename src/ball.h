@@ -75,7 +75,7 @@ void BallStart(AppContext *_app, Entity *_entity)
 void BallUpdate(AppContext *_app, Entity *_entity)
 {
     Ball *ball = (Ball *)_entity->data;
-    Vector3 lastPos = ball->trails[(ball->index - 1 + 10) % 10];
+    Vector3 lastPos = ball->trails[(ball->index + 10 - 1) % 10];
 
     if (Vec2Distance(InitVector2(lastPos.x, lastPos.y), InitVector2(_entity->transform.position.x, _entity->transform.position.y)) > 10.0f)
     {
@@ -105,6 +105,9 @@ void BallUpdate(AppContext *_app, Entity *_entity)
         ball->pulseFinished = 0;
         ball->pulseTime = 0.0f;
         ball->inversePulseTime = 848.5f;
+        for(int i = 0; i < 10; i++){
+            ball->trails[i] = InitVector3(_app->windowWidth/2.0f, _app->windowHeight/2.0f, 0.0f);
+        }
     }
 
     if (GetKeyDown(_app, SDL_SCANCODE_P))
@@ -188,6 +191,54 @@ void BallUpdate(AppContext *_app, Entity *_entity)
         BallRoomBlitz(_app, _entity, color);
     }
 }
+void FakeBallsUpdate(AppContext* _app, Entity* _entity){
+   Ball *ball = (Ball *)_entity->data;
+    Vector3 lastPos = ball->trails[(ball->index + 10 - 1) % 10];
+
+    if (Vec2Distance(InitVector2(lastPos.x, lastPos.y), InitVector2(_entity->transform.position.x, _entity->transform.position.y)) > 10.0f)
+    {
+        ball->trails[ball->index] = _entity->transform.position;
+        ball->index = (ball->index + 1) % 10;
+    }
+
+    // check if ball is heading below the screen
+    if (_entity->transform.position.y - _entity->transform.scale.y * 0.5f <= 0.0f && _entity->velocity.y < 0.0f)
+    {
+        _entity->velocity.y *= -1.0f;
+    }
+
+    // check if ball is heading above the screen
+    if (_entity->transform.position.y + _entity->transform.scale.y * 0.5f >= _app->windowHeight && _entity->velocity.y > 0.0f)
+    {
+        _entity->velocity.y *= -1.0f;
+    }
+
+    Entity *leftPaddle = Find(&_app->scene, "LeftPaddle");
+    Entity *rightPaddle = Find(&_app->scene, "RightPaddle");
+    // if(leftPaddle){printf("%s\n",leftPaddle->name);} im leaving this comment as a memento mori for all the suffering the above caused
+
+    enum CollisionSide lPaddle = Collision(_entity, leftPaddle);
+    enum CollisionSide rPaddle = Collision(_entity, rightPaddle);
+
+    if ((lPaddle == LEFT || lPaddle == RIGHT) ||
+        (rPaddle == LEFT || rPaddle == RIGHT))
+    {
+        ball->collisionCount++;
+        _entity->velocity.x *= -1.0f;
+        _entity->velocity = Vec2Mul(_entity->velocity, 1.15f);
+    }
+    else if ((lPaddle == TOP || lPaddle == BOTTOM) ||
+             (rPaddle == TOP || rPaddle == BOTTOM))
+    {
+        ball->collisionCount++;
+        _entity->velocity = Vec2Mul(_entity->velocity, -1.0f);
+    }
+
+    Vector3 delta = Vec2ToVec3(Vec2Mul(_entity->velocity, _app->deltaTime));
+    _entity->transform.position = Vec3Add(_entity->transform.position, delta);
+    ball->fireworkSpawnTimer -= _app->deltaTime;
+
+}
 
 void BallDraw(AppContext *_app, Entity *_entity)
 {
@@ -207,15 +258,14 @@ void BallDraw(AppContext *_app, Entity *_entity)
     glDepthMask(GL_FALSE);
     for (int i = 0; i < 10; i++)
     {
-        int index = (ballStr->index - 1 - i + 10) % 10; // newest first
-        Vector3 pos = ballStr->trails[index];
+
+        Vector3 pos = ballStr->trails[i];
 
         Matrix4 trailMat = IdentityMatrix4();
-        Mat4Translate(&trailMat, pos); // translate to trail position
+        Mat4Translate(&trailMat, pos);
         Mat4Scale(&trailMat, InitVector3(_entity->transform.scale.x, _entity->transform.scale.y, 1.0f));
 
-        float alpha = 0.2f + 0.8f * (1.0f - (float)i / 10.0f); // fading
-        ShaderSetVector4(_entity->shaderId, "COLOR", (Vector4){1.0f, 1.0f, 1.0f, alpha});
+        ShaderSetVector4(_entity->shaderId, "COLOR", (Vector4){_entity->color.x, _entity->color.y,_entity->color.z, 0.25f});
         ShaderSetMatrix4(_entity->shaderId, "TRANSFORM", trailMat);
         DrawModel(*_entity->model);
     }
@@ -310,17 +360,17 @@ void BallRoomBlitz(AppContext *_app, Entity *_entity, Vector4 color)
     // i dont think it should be spawning as many as it does but eh
     for (int i = 0; i < _app->windowWidth; i += 10)
     {
-        printf("Color RGBA: %f, %f, %f, %f\n", _entity->color.x, _entity->color.y, _entity->color.z, _entity->color.w);
+        //printf("Color RGBA: %f, %f, %f, %f\n", _entity->color.x, _entity->color.y, _entity->color.z, _entity->color.w);
         Entity *ball = Spawn(&(_app->scene));
         ball->transform.scale = InitVector3(32.0f, 32.0f, 1.0f);
-        ball->transform.position = InitVector3(i, _app->windowHeight - 50, 0.0f);
+        ball->transform.position = InitVector3(i, _app->windowHeight + 50, 0.0f);
         ball->data = calloc(1, sizeof(Ball));
         ball->image = _entity->image;
         ball->model = _entity->model;
         ball->color = _entity->color;
         ball->velocity = InitVector2(0.0f, -10.0f * ((rand() % 10) + 1));
         ball->shaderId = _entity->shaderId;
-        ball->Update = BallUpdate;
+        ball->Update = FakeBallsUpdate;
         ball->Draw = BallDraw;
         ball->OnDestroy = BallOnDestroy;
     }

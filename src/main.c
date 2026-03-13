@@ -26,18 +26,19 @@
 #include "ball.h"
 #include "paddle.h"
 #include "GridCell.h"
-//
-//Look at GridCell.h and Ball.h to find pretty much everything
-//or to look at my hyper fixation for a weekend
-//ALSO i had task manager open for a couple of runs and allow to proudly say my big numbers
-//CPU utilization ~25%
-//Memory ~70%
-//also if you dont get srolling to right just run it again
-//but it is a 50/50 chance of seeing that one
-AppContext app;
 
+AppContext app;
+//FUll CONTEXT this didnt take as much as it seems
+//ok it took quite a bit but all the requirements were done relatively fast
+//and I had an idea
 int main(int argc, char *argv[])
 {
+    //look in the terminal
+    char choice;
+    do
+    {
+        choice = request_char("r for the Right way, OR f for the 'fun' way");
+    } while (choice != 'r' && choice != 'f');
     srand(time(NULL));
 
     if (InitCanis() > 0)
@@ -56,10 +57,13 @@ int main(int argc, char *argv[])
     Image containerImage = IOLoadImage("assets/textures/container.tga");
     Image circleImage = IOLoadImage("assets/textures/circle.tga");
     Image squareImage = IOLoadImage("assets/textures/square.tga");
+    Image gridImage = IOLoadImage("assets/textures/grid.tga");
 
     // build and compile our shader program
     u32 shaderProgram = GenerateShaderFromFiles("assets/shaders/logo.vs", "assets/shaders/logo.fs");
+    u32 gridShader = GenerateShaderFromFiles("assets/shaders/grid.vs", "assets/shaders/grid.fs");
     printf("shaderID: %i\n", shaderProgram);
+    printf("shaderID: %i\n", gridShader);
 
     float ve[] = {
         // positions            // texture coords
@@ -80,35 +84,53 @@ int main(int argc, char *argv[])
     vec_append(&indices, in, 6);
 
     Model model = BuildModel(&vertices, &indices, STATIC_DRAW);
-
-    float cellSize = 32.0f;
-    float border = 2.0f;
-    int gx = 0;
-    for (float x = -cellSize; x <= app.windowHeight + 2.0f * cellSize; x += cellSize + border)
+    if (choice == 'r')
     {
-        int gy = 0;
-        for (float y = -cellSize; y <= app.windowWidth + 2.0f * cellSize; y += cellSize + border)
+        printf("boring choice\n");
+        Entity *backGround = Spawn(&scene);
+        backGround->transform.position = InitVector3(app.windowWidth * 0.5f, app.windowHeight * 0.5f, -1.0f);
+        backGround->transform.scale = InitVector3(app.windowWidth, app.windowHeight, 0.0f);
+        backGround->color = PositionColor(backGround->transform.position);
+        backGround->data = calloc(1, sizeof(Ball));
+        backGround->image = &gridImage;
+        backGround->model = &model;
+        backGround->shaderId = gridShader;
+        // backGround->Start = BallStart;
+        // backGround->Update = BallUpdate;
+        backGround->Draw = BallDraw;
+    }
+    else
+    {
+        printf("you wont regret this :)\n");
+        float cellSize = 32.0f;
+        float border = 2.0f;
+        int gx = 0;
+        for (float x = -cellSize; x <= app.windowHeight; x += cellSize + border)
         {
-            Entity *cell = Spawn(&scene);
-            cell->transform.position = InitVector3(x, y, -0.001f);
+            int gy = 0;
+            for (float y = -cellSize; y <= app.windowWidth; y += cellSize + border)
+            {
+                Entity *cell = Spawn(&scene);
+                cell->transform.position = InitVector3(x, y, -0.001f);
 
-            Cell *c = calloc(1, sizeof(Cell));
-            c->gx = gx; // integer index
-            c->gy = gy; // integer index
-            cell->data = c;
+                Cell *c = calloc(1, sizeof(Cell));
+                c->gx = gx; // integer index
+                c->gy = gy; // integer index
+                cell->data = c;
 
-            cell->image = &squareImage;
-            cell->model = &model;
-            cell->shaderId = shaderProgram;
+                cell->image = &squareImage;
+                cell->model = &model;
+                cell->shaderId = shaderProgram;
 
-            cell->Start = CellStart;
-            cell->Update = CellUpdate;
-            cell->Draw = CellDraw;
-            cell->OnDestroy = CellDestroy;
+                cell->Start = CellStart;
+                cell->Update = CellUpdate;
+                cell->Draw = CellDraw;
+                cell->OnDestroy = CellDestroy;
 
-            gy++;
+                gy++;
+            }
+            gx++;
         }
-        gx++;
     }
 
     Entity *ball = Spawn(&scene);
@@ -158,7 +180,7 @@ int main(int argc, char *argv[])
     {
         // imput
         InputManagerNewFrame(&app);
-        // printf("FPS: %f Entity Count: %i\n", 1.0f/app.deltaTime, vec_count(&scene->entities));
+        //printf("FPS: %f Entity Count: %i\n", 1.0f/app.deltaTime, vec_count(&scene->entities));
 
         SDL_Event event;
         while (SDL_PollEvent(&event))
